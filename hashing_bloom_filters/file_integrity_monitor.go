@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	checksumMatch    = "OK: %s"
-	checksumMismatch = "ALERT: %s (checksum mismatch)"
+	ChecksumMatch    = "OK: %s"
+	ChecksumMismatch = "ALERT: %s (checksum mismatch)"
 )
 
 func main() {
@@ -47,12 +47,7 @@ func verifyIntegrity(input []byte) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer func() {
-			// ensure file is closed and capture any closing errors
-			if cerr := file.Close(); cerr != nil && err == nil {
-				log.Fatal("failed to cloase file: %w", cerr)
-			}
-		}
+		defer file.Close()
 
 		// from the example in the docs
 		hash := sha256.New()
@@ -64,10 +59,35 @@ func verifyIntegrity(input []byte) {
 		// %x is a base 16 integer
 		// NOTE: while this works, it can be vulnerable to timing attacks
 		if checksum != fmt.Sprintf("%x", hash.Sum(nil)) {
-			log.Printf(checksumMismatch, file.Name(), checksum)
+			log.Printf(ChecksumMismatch, file.Name())
 			continue
 		}
-		log.Printf(checksumMatch, file.Name())
+		log.Printf(ChecksumMatch, file.Name())
+	}
+}
+
+func verifyIntegrityFixed(input []byte) {
+	var files map[string]string
+	err := json.Unmarshal(input, &files)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for file, checksum := range files {
+		file, err := os.Open(file) // file is a reader
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+
+		// from the example in the docs
+		hash := sha256.New()
+		if _, err := io.Copy(hash, file); err != nil {
+			// io.Copy handles large files by reading in chunks
+			log.Fatal(err)
+		}
+
+		// TODO fix naive check
 	}
 
 	return
